@@ -63,17 +63,17 @@ fileBase64Media = base64String.split(",")[0];
 // Tiempo de retraso de consulta al PGSQL para iniciar el envio. 1 minuto
 var tiempoRetrasoPGSQL = 1000 * 60;
 // Tiempo entre envios. Cada 15s se realiza el envío a la API free WWA
-var tiempoRetrasoEnvios = 15000;
+var tiempoRetrasoEnvios = 10000;
 
 // Blacklist fechas
-const blacklist = ["2023-05-02", "2023-05-16", "2023-08-15"];
+const blacklist = ["2023-05-02", "2023-05-16", "2023-08-15", "2023-09-29"];
 
 module.exports = (app) => {
   const Turnos_sucursales48hs = app.db.models.Turnos_sucursales48hs;
   const Users = app.db.models.Users;
 
   // Ejecutar la funcion Sucursales 48hs de Lunes(1) a Jueves (4) a las 08:00am
-  cron.schedule("00 08 * * 1-4", () => {
+  cron.schedule("00 07 * * 1-4", () => {
     let hoyAhora = new Date();
     let diaHoy = hoyAhora.toString().slice(0, 3);
     let fullHoraAhora = hoyAhora.toString().slice(16, 21);
@@ -92,7 +92,7 @@ module.exports = (app) => {
   });
 
   // Ejecutar la funcion de 72hs los Viernes(5) y Sabados(6)
-  cron.schedule('00 08 * * 5,6', () => {
+  cron.schedule('00 07 * * 5,6', () => {
     let hoyAhora = new Date();
     let diaHoy = hoyAhora.toString().slice(0, 3);
     let fullHoraAhora = hoyAhora.toString().slice(16, 21);
@@ -118,7 +118,7 @@ module.exports = (app) => {
       // db = DATABASE
       db.query(
         // Trae los ultimos 50 registros de turnos del JKMT
-        "SELECT * FROM VW_RESUMEN_TURNOS_48HS_INC",
+        "SELECT * FROM VW_RESUMEN_TURNOS_48HS",
 
         function (err, result) {
           console.log("Cant de turnos obtenidos del JKMT:", result.length);
@@ -177,6 +177,8 @@ module.exports = (app) => {
     });
   }
 
+  //injeccionFirebird48();
+
   // Consulta al JKMT
   function injeccionFirebird72() {
     console.log("Se actualiza el PSQL 72hs");
@@ -186,7 +188,7 @@ module.exports = (app) => {
       // db = DATABASE
       db.query(
         // Trae los ultimos 50 registros de turnos del JKMT
-        "SELECT * FROM VW_RESUMEN_TURNOS_72HS_INC",
+        "SELECT * FROM VW_RESUMEN_TURNOS_72HS",
         
         function (err, result) {
           console.log("Cant de turnos 72hs obtenidos del JKMT:", result.length);
@@ -269,6 +271,8 @@ module.exports = (app) => {
         });
     }, tiempoRetrasoPGSQL);
   }
+
+  //iniciarEnvio();
 
   // Envia los mensajes
   let retraso = () => new Promise((r) => setTimeout(r, tiempoRetrasoEnvios));
