@@ -38,8 +38,10 @@ odontos.retryConnectionInterval = 1000; // reconnect interval in case of connect
 odontos.blobAsText = false; // Var para la conexion a WWA Free
 //const wwaUrl = "http://localhost:3003/lead";
 // Conexion a WWA Free del Centos 10.27
+//const wwaUrl = "http://192.168.10.200:3003/lead";
+// Sesion del enviador de Primera consulta
 
-var wwaUrl = "http://192.168.10.200:3003/lead"; // Datos del Mensaje de whatsapp
+var wwaUrl = "http://192.168.10.200:3011/lead"; // Datos del Mensaje de whatsapp
 
 var fileMimeTypeMedia = "";
 var fileBase64Media = ""; // Mensaje pie de imagen
@@ -65,7 +67,7 @@ fileBase64Media = base64String.split(",")[0]; // Tiempo de retraso de consulta a
 
 var tiempoRetrasoPGSQL = 1000 * 60; // Tiempo entre envios. Cada 15s se realiza el envío a la API free WWA
 
-var tiempoRetrasoEnvios = 15000; // Blacklist fechas
+var tiempoRetrasoEnvios = 10000; // Blacklist fechas
 
 var blacklist = ["2023-05-02", "2023-05-16", "2023-08-15", "2023-09-29"];
 
@@ -73,7 +75,7 @@ module.exports = function (app) {
   var Turnos_sucursales48hs = app.db.models.Turnos_sucursales48hs;
   var Users = app.db.models.Users; // Ejecutar la funcion Sucursales 48hs de Lunes(1) a Jueves (4) a las 08:00am
 
-  cron.schedule("00 08 * * 1-4", function () {
+  cron.schedule("00 07 * * 1-4", function () {
     var hoyAhora = new Date();
     var diaHoy = hoyAhora.toString().slice(0, 3);
     var fullHoraAhora = hoyAhora.toString().slice(16, 21); // Checkear la blacklist antes de ejecutar la función
@@ -91,7 +93,7 @@ module.exports = function (app) {
     injeccionFirebird48();
   }); // Ejecutar la funcion de 72hs los Viernes(5) y Sabados(6)
 
-  cron.schedule('00 08 * * 5,6', function () {
+  cron.schedule('00 07 * * 5,6', function () {
     var hoyAhora = new Date();
     var diaHoy = hoyAhora.toString().slice(0, 3);
     var fullHoraAhora = hoyAhora.toString().slice(16, 21); // Checkear la blacklist antes de ejecutar la función
