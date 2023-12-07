@@ -24,7 +24,7 @@ odontos.blobAsText = false;
 //const wwaUrl = "http://192.168.10.200:3003/lead";
 
 // Sesion del enviador de Primera consulta
-const wwaUrl = "http://192.168.10.200:3003/lead";
+const wwaUrl = "http://192.168.10.200:3011/lead";
 
 // Datos del Mensaje de whatsapp
 let fileMimeTypeMedia = "";
@@ -69,7 +69,7 @@ var tiempoRetrasoPGSQL = 1000 * 60;
 var tiempoRetrasoEnvios = 10000;
 
 // Blacklist fechas
-const blacklist = ["2023-05-02", "2023-05-16", "2023-08-15", "2023-09-29"];
+const blacklist = ["2023-05-02", "2023-05-16", "2023-08-15", "2023-09-29", "2023-12-08"];
 
 module.exports = (app) => {
   const Turnos_sucursales48hs = app.db.models.Turnos_sucursales48hs;

@@ -176,7 +176,7 @@ module.exports = function (app) {
       if (err) throw err; // db = DATABASE
 
       db.query( // Trae los ultimos 50 registros de turnos del JKMT
-      "SELECT * FROM VW_RESUMEN_TURNOS_72HS", function (err, result) {
+      "SELECT * FROM VW_RESUMEN_TURNOS_96HS", function (err, result) {
         console.log("Cant de turnos 72hs obtenidos del JKMT:", result.length); // Recorre el array que contiene los datos e inserta en la base de postgresql
 
         result.forEach(function (e) {
