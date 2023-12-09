@@ -40,13 +40,7 @@ En caso de NO confirmar su Turno con 24 hs de anticipación❗❗, QUEDARA DISPO
 let mensajePieCompleto = "";
 
 // Ruta de la imagen JPEG
-const imagePath = path.join(
-  __dirname,
-  "..",
-  "assets",
-  "img",
-  "imgSucursales.jpeg"
-);
+const imagePath = path.join(__dirname, "..", "assets", "img", "imgSucursales.jpeg");
 // Leer el contenido de la imagen como un buffer
 const imageBuffer = fs.readFileSync(imagePath);
 // Convertir el buffer a base64
@@ -69,7 +63,14 @@ var tiempoRetrasoPGSQL = 1000 * 60;
 var tiempoRetrasoEnvios = 10000;
 
 // Blacklist fechas
-const blacklist = ["2023-05-02", "2023-05-16", "2023-08-15", "2023-09-29", "2023-12-08"];
+const blacklist = [
+  "2023-05-02",
+  "2023-05-16",
+  "2023-08-15",
+  "2023-09-29",
+  "2023-12-08",
+  "2023-12-11",
+];
 
 module.exports = (app) => {
   const Turnos_sucursales48hs = app.db.models.Turnos_sucursales48hs;
@@ -95,7 +96,7 @@ module.exports = (app) => {
   });
 
   // Ejecutar la funcion de 72hs los Viernes(5) y Sabados(6)
-  cron.schedule('00 07 * * 5,6', () => {
+  cron.schedule("00 07 * * 5,6", () => {
     let hoyAhora = new Date();
     let diaHoy = hoyAhora.toString().slice(0, 3);
     let fullHoraAhora = hoyAhora.toString().slice(16, 21);
@@ -107,9 +108,9 @@ module.exports = (app) => {
       console.log(`La fecha ${dateString} está en la blacklist y no se ejecutará la tarea.`);
       return;
     }
-    
+
     console.log("Hoy es:", diaHoy, "la hora es:", fullHoraAhora);
-    console.log('CRON: Se consulta al JKMT 72hs');
+    console.log("CRON: Se consulta al JKMT 72hs");
     injeccionFirebird72();
   });
 
@@ -164,9 +165,7 @@ module.exports = (app) => {
             // Poblar PGSQL
             Turnos_sucursales48hs.create(e)
               //.then((result) => res.json(result))
-              .catch((error) =>
-                console.log("Error al poblar PGSQL", error.message)
-              );
+              .catch((error) => console.log("Error al poblar PGSQL", error.message));
           });
 
           // IMPORTANTE: cerrar la conexion
@@ -192,7 +191,7 @@ module.exports = (app) => {
       db.query(
         // Trae los ultimos 50 registros de turnos del JKMT
         "SELECT * FROM VW_RESUMEN_TURNOS_72HS",
-        
+
         function (err, result) {
           console.log("Cant de turnos 72hs obtenidos del JKMT:", result.length);
 
@@ -241,9 +240,7 @@ module.exports = (app) => {
 
           // IMPORTANTE: cerrar la conexion
           db.detach();
-          console.log(
-            "Llama a la funcion iniciar envio que se retrasa 1 min en ejecutarse 48hs"
-          );
+          console.log("Llama a la funcion iniciar envio que se retrasa 1 min en ejecutarse 48hs");
           iniciarEnvio();
         }
       );
@@ -280,18 +277,28 @@ module.exports = (app) => {
   // Envia los mensajes
   let retraso = () => new Promise((r) => setTimeout(r, tiempoRetrasoEnvios));
   async function enviarMensaje() {
-    console.log(
-      "Inicia el recorrido del for para enviar los turnos Sucursales48hs"
-    );
+    console.log("Inicia el recorrido del for para enviar los turnos Sucursales48hs");
     for (let i = 0; i < losTurnos.length; i++) {
       const turnoId = losTurnos[i].id_turno;
       //mensajePieCompleto = losTurnos[i].CLIENTE + mensajePie;
-      mensajePieCompleto = `Buenas Sr/a.
-` + losTurnos[i].CLIENTE + `
+      mensajePieCompleto =
+        `Buenas Sr/a.
+` +
+        losTurnos[i].CLIENTE +
+        `
       
-*ODONTOS* le recuerda su turno en fecha ` + losTurnos[i].FECHA + ` a las ` + losTurnos[i].HORA +
-` en la sucursal ` + losTurnos[i].SUCURSAL + ` con el/la profesional ` + losTurnos[i].NOMBRE_COMERCIAL + `
-#Carnet: ` + losTurnos[i].CARNET + mensajePie;
+*ODONTOS* le recuerda su turno en fecha ` +
+        losTurnos[i].FECHA +
+        ` a las ` +
+        losTurnos[i].HORA +
+        ` en la sucursal ` +
+        losTurnos[i].SUCURSAL +
+        ` con el/la profesional ` +
+        losTurnos[i].NOMBRE_COMERCIAL +
+        `
+#Carnet: ` +
+        losTurnos[i].CARNET +
+        mensajePie;
 
       const data = {
         message: mensajePieCompleto,
@@ -480,10 +487,7 @@ module.exports = (app) => {
           { estado_envio: 1 },
           {
             updatedAt: {
-              [Op.between]: [
-                fecha_desde + " 00:00:00",
-                fecha_hasta + " 23:59:59",
-              ],
+              [Op.between]: [fecha_desde + " 00:00:00", fecha_hasta + " 23:59:59"],
             },
           },
         ],
