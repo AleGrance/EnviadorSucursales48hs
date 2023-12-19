@@ -18,7 +18,7 @@ odontos.retryConnectionInterval = 1000; // reconnect interval in case of connect
 odontos.blobAsText = false;
 
 // Sesion del enviador de Primera consulta
-const wwaUrl = "http://192.168.10.200:3011/lead";
+const wwaUrl = "http://192.168.10.200:3003/lead";
 // URL del notificador
 const wwaUrl_Notificacion = "http://localhost:3088/lead";
 
