@@ -27,7 +27,6 @@ let fileMimeTypeMedia = "";
 let fileBase64Media = "";
 let mensajeBody = "";
 
-
 // Mensaje pie de imagen
 let mensajePie = `
 
@@ -68,7 +67,17 @@ const blacklist = [
   "2023-09-29",
   "2023-12-08",
   "2023-12-11",
+
+  "2023-12-23",
+  "2023-12-29",
+  "2023-12-30",
+
+  "2023-12-25", // Navidad
+  "2024-01-01", // Año nuevo
 ];
+
+// Whitelist para ejecutar el de 96hs
+const whitelist = ["2023-12-23", "2023-12-29", "2023-12-30"];
 
 module.exports = (app) => {
   const Turnos_sucursales48hs = app.db.models.Turnos_sucursales48hs;
@@ -112,7 +121,26 @@ module.exports = (app) => {
     injeccionFirebird72();
   });
 
-  // Consulta al JKMT
+  // Ejecutar la funcion de 96hs los días dentro de la whitelist
+  cron.schedule("05 07 * * 5,6", () => {
+    let hoyAhora = new Date();
+    let diaHoy = hoyAhora.toString().slice(0, 3);
+    let fullHoraAhora = hoyAhora.toString().slice(16, 21);
+
+    // Checkear la blacklist antes de ejecutar la función
+    const now = new Date();
+    const dateString = now.toISOString().split("T")[0];
+
+    if (whitelist.includes(dateString)) {
+      console.log(`La fecha ${dateString} está en la whiteliste y se ejecutará la tarea.`);
+      console.log("Hoy es:", diaHoy, "la hora es:", fullHoraAhora);
+
+      console.log("CRON: Se consulta al JKMT 96hs");
+      injeccionFirebird96();
+    }
+  });
+
+  // Consulta al JKMT 48hs
   function injeccionFirebird48() {
     Firebird.attach(odontos, function (err, db) {
       if (err) throw err;
@@ -135,7 +163,7 @@ module.exports = (app) => {
             if (!e.PLAN_CLIENTE) {
               e.PLAN_CLIENTE = " ";
             }
-            
+
             // Si el nro de tel trae NULL cambiar por 595000 y cambiar el estado a 2
             //Si no reemplazar el 0 por el 595
             if (!e.TELEFONO_MOVIL) {
@@ -172,7 +200,7 @@ module.exports = (app) => {
 
   //injeccionFirebird48();
 
-  // Consulta al JKMT
+  // Consulta al JKMT 72hs
   function injeccionFirebird72() {
     console.log("Se actualiza el PSQL 72hs");
     Firebird.attach(odontos, function (err, db) {
@@ -231,7 +259,9 @@ module.exports = (app) => {
 
           // IMPORTANTE: cerrar la conexion
           db.detach();
-          console.log("Llama a la funcion iniciar envio que se retrasa 1 min en ejecutarse 48hs");
+          console.log(
+            "Llama a la funcion iniciar envio que se retrasa 1 min en ejecutarse Sucursales48hs"
+          );
           iniciarEnvio();
         }
       );
@@ -239,6 +269,66 @@ module.exports = (app) => {
   }
 
   //injeccionFirebird72();
+
+  // Consulta al JKMT 96hs
+  function injeccionFirebird96() {
+    console.log("Se actualiza el PSQL 96hs");
+    Firebird.attach(odontos, function (err, db) {
+      if (err) throw err;
+
+      // db = DATABASE
+      db.query(
+        // Trae los ultimos 50 registros de turnos del JKMT
+        "SELECT * FROM VW_RESUMEN_TURNOS_96HS",
+
+        function (err, result) {
+          console.log("Cant de turnos 96hs obtenidos del JKMT:", result.length);
+
+          // Recorre el array que contiene los datos e inserta en la base de postgresql
+          result.forEach((e) => {
+            // Si el nro de cert trae NULL cambiar por 000000
+            if (!e.CARNET) {
+              e.CARNET = " ";
+            }
+            // Si no tiene plan
+            if (!e.PLAN_CLIENTE) {
+              e.PLAN_CLIENTE = " ";
+            }
+
+            // Si el nro de tel trae NULL cambiar por 595000 y cambiar el estado a 2
+            // Si no reemplazar el 0 por el 595
+            if (!e.TELEFONO_MOVIL) {
+              e.TELEFONO_MOVIL = "595000";
+              e.estado_envio = 2;
+            } else {
+              e.TELEFONO_MOVIL = e.TELEFONO_MOVIL.replace(0, "595");
+            }
+
+            // Reemplazar por mi nro para probar el envio
+            // if (!e.TELEFONO_MOVIL) {
+            //   e.TELEFONO_MOVIL = "595000";
+            //   e.estado_envio = 2;
+            // } else {
+            //   e.TELEFONO_MOVIL = "595986153301";
+            // }
+
+            Turnos_sucursales48hs.create(e)
+              //.then((result) => res.json(result))
+              .catch((error) => console.log(error.message));
+          });
+
+          // IMPORTANTE: cerrar la conexion
+          db.detach();
+          console.log(
+            "Llama a la funcion iniciar envio que se retrasa 1 min en ejecutarse Sucursales48hs"
+          );
+          iniciarEnvio();
+        }
+      );
+    });
+  }
+
+  //injeccionFirebird96();
 
   // Inicia los envios - Consulta al PGSQL
   let losTurnos = [];
