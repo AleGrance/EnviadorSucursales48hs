@@ -3,19 +3,10 @@ const cron = require("node-cron");
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
+// Conexion con Firebird
 var Firebird = require("node-firebird");
-
-var odontos = {};
-
-odontos.host = "192.168.10.247";
-odontos.port = 3050;
-odontos.database = "c:\\\\jakemate\\\\base\\\\ODONTOS64.fdb";
-odontos.user = "SYSDBA";
-odontos.password = "masterkey";
-odontos.lowercase_keys = false; // set to true to lowercase keys
-odontos.role = null; // default
-odontos.retryConnectionInterval = 1000; // reconnect interval in case of connection drop
-odontos.blobAsText = false;
+// Datos de la conexion Firebird
+import { firebird } from "../libs/config";
 
 // Sesion del enviador de Primera consulta
 const wwaUrl = "http://192.168.10.200:3003/lead";
@@ -140,10 +131,22 @@ module.exports = (app) => {
     }
   });
 
+  // Trae los datos del Firebird - Intenta cada 1 min en caso de error de conexion
+  function tryAgain48() {
+    console.log("Error de conexion con el Firebird, se intenta nuevamente luego de 10s...");
+    setTimeout(() => {
+      injeccionFirebird48();
+    }, 1000 * 60);
+  }
+
   // Consulta al JKMT 48hs
   function injeccionFirebird48() {
-    Firebird.attach(odontos, function (err, db) {
-      if (err) throw err;
+    console.log("Obteniendo los datos del Firebird...48hs");
+    Firebird.attach(firebird, function (err, db) {
+      if (err) {
+        console.log(err);
+        return tryAgain48();
+      }
 
       // db = DATABASE
       db.query(
@@ -198,13 +201,22 @@ module.exports = (app) => {
     });
   }
 
-  //injeccionFirebird48();
+  // Trae los datos del Firebird - Intenta cada 1 min en caso de error de conexion
+  function tryAgain72() {
+    console.log("Error de conexion con el Firebird, se intenta nuevamente luego de 10s...");
+    setTimeout(() => {
+      injeccionFirebird72();
+    }, 1000 * 60);
+  }
 
   // Consulta al JKMT 72hs
   function injeccionFirebird72() {
-    console.log("Se actualiza el PSQL 72hs");
-    Firebird.attach(odontos, function (err, db) {
-      if (err) throw err;
+    console.log("Obteniendo los datos del Firebird...72hs");
+    Firebird.attach(firebird, function (err, db) {
+      if (err) {
+        console.log(err);
+        return tryAgain72();
+      }
 
       // db = DATABASE
       db.query(
@@ -268,12 +280,10 @@ module.exports = (app) => {
     });
   }
 
-  //injeccionFirebird72();
-
   // Consulta al JKMT 96hs
   function injeccionFirebird96() {
     console.log("Se actualiza el PSQL 96hs");
-    Firebird.attach(odontos, function (err, db) {
+    Firebird.attach(firebird, function (err, db) {
       if (err) throw err;
 
       // db = DATABASE
@@ -327,8 +337,6 @@ module.exports = (app) => {
       );
     });
   }
-
-  //injeccionFirebird96();
 
   // Inicia los envios - Consulta al PGSQL
   let losTurnos = [];
