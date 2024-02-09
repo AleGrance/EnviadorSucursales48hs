@@ -6,6 +6,9 @@ var _consign = _interopRequireDefault(require("consign"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
+// Importar para leer los valores de entorno
+require('dotenv').config();
+
 var app = (0, _express["default"])(); //cross access
 
 var allowCrossDomain = function allowCrossDomain(req, res, next) {

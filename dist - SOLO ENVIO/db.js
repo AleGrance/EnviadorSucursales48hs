@@ -6,16 +6,16 @@ var _fs = _interopRequireDefault(require("fs"));
 
 var _path = _interopRequireDefault(require("path"));
 
+var _config = require("./libs/config");
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
+// Datos de la conexion PG
 var db = null;
 
 module.exports = function (app) {
-  var config = app.libs.config; //Info de la conexion a la db del archivo config.js
-  //console.log(config);
-
   if (!db) {
-    var sequelize = new _sequelize["default"](config.database, config.username, config.password, config.params);
+    var sequelize = new _sequelize["default"](_config.postgres.database, _config.postgres.username, _config.postgres.password, _config.postgres.params);
     db = {
       sequelize: sequelize,
       Sequelize: _sequelize["default"],

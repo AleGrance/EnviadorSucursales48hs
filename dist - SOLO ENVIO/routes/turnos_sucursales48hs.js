@@ -2,6 +2,8 @@
 
 function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) { return typeof obj; } : function (obj) { return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }, _typeof(obj); }
 
+var _config = require("../libs/config");
+
 function _createForOfIteratorHelper(o, allowArrayLike) { var it = typeof Symbol !== "undefined" && o[Symbol.iterator] || o["@@iterator"]; if (!it) { if (Array.isArray(o) || (it = _unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") { if (it) o = it; var i = 0; var F = function F() {}; return { s: F, n: function n() { if (i >= o.length) return { done: true }; return { done: false, value: o[i++] }; }, e: function e(_e) { throw _e; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var normalCompletion = true, didErr = false, err; return { s: function s() { it = it.call(o); }, n: function n() { var step = it.next(); normalCompletion = step.done; return step; }, e: function e(_e2) { didErr = true; err = _e2; }, f: function f() { try { if (!normalCompletion && it["return"] != null) it["return"](); } finally { if (didErr) throw err; } } }; }
 
 function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen); }
@@ -25,36 +27,27 @@ var fs = require("fs");
 
 var path = require("path");
 
-var axios = require("axios");
+var axios = require("axios"); // Conexion con Firebird
 
-var Firebird = require("node-firebird");
 
-var odontos = {};
-odontos.host = "192.168.10.247";
-odontos.port = 3050;
-odontos.database = "c:\\\\jakemate\\\\base\\\\ODONTOS64.fdb";
-odontos.user = "SYSDBA";
-odontos.password = "masterkey";
-odontos.lowercase_keys = false; // set to true to lowercase keys
+var Firebird = require("node-firebird"); // Datos de la conexion Firebird
 
-odontos.role = null; // default
 
-odontos.retryConnectionInterval = 1000; // reconnect interval in case of connection drop
-
-odontos.blobAsText = false; // Sesion del enviador de Primera consulta
-
-var wwaUrl = "http://192.168.10.200:3003/lead"; // URL del notificador
+// Sesion del enviador
+var wwaUrl = "http://192.168.10.200:3003/lead"; //const wwaUrl = "http://192.168.10.200:3001/lead";
+// URL del notificador
 
 var wwaUrl_Notificacion = "http://localhost:3088/lead"; // Datos del Mensaje de whatsapp
 
 var fileMimeTypeMedia = "";
-var fileBase64Media = "";
+var fileBase64Media = ""; // Mensaje del notificador
+
 var mensajeBody = ""; // Mensaje pie de imagen
 
 var mensajePie = "\n\n*Para CONFIRMAR TURNO o CANCELAR TURNO, responder siempre al WhatsApp* \uD83D\uDCF2  *del 0214129000*\u2B05\uFE0F\n\nEn caso de NO confirmar su Turno con 24 hs de anticipaci\xF3n\u2757\u2757, QUEDARA DISPONIBLE PARA OTRO PACIENTE. Se recuerda estar al d\xEDa con el pago para acceder a su consulta.";
 var mensajePieCompleto = ""; // Ruta de la imagen JPEG
 
-var imagePath = path.join(__dirname, "..", "assets", "img", "imgSucursales.jpeg"); // Leer el contenido de la imagen como un buffer
+var imagePath = path.join(__dirname, "..", "img", "imgSucursales.jpeg"); // Leer el contenido de la imagen como un buffer
 
 var imageBuffer = fs.readFileSync(imagePath); // Convertir el buffer a base64
 
@@ -74,7 +67,11 @@ var tiempoRetrasoPGSQL = 1000 * 60; // Tiempo entre envios. Cada 15s se realiza 
 
 var tiempoRetrasoEnvios = 10000; // Blacklist fechas
 
-var blacklist = ["2023-05-02", "2023-05-16", "2023-08-15", "2023-09-29", "2023-12-08", "2023-12-11"];
+var blacklist = ["2023-05-02", "2023-05-16", "2023-08-15", "2023-09-29", "2023-12-08", "2023-12-11", "2023-12-23", "2023-12-29", "2023-12-30", "2023-12-25", // Navidad
+"2024-01-01" // Año nuevo
+]; // Whitelist para ejecutar el de 96hs
+
+var whitelist = ["2023-12-23", "2023-12-29", "2023-12-30"];
 
 module.exports = function (app) {
   var Turnos_sucursales48hs = app.db.models.Turnos_sucursales48hs;
@@ -114,11 +111,40 @@ module.exports = function (app) {
     console.log("Hoy es:", diaHoy, "la hora es:", fullHoraAhora);
     console.log("CRON: Se consulta al JKMT 72hs");
     injeccionFirebird72();
-  }); // Consulta al JKMT
+  }); // Ejecutar la funcion de 96hs los días dentro de la whitelist
+
+  cron.schedule("05 07 * * 5,6", function () {
+    var hoyAhora = new Date();
+    var diaHoy = hoyAhora.toString().slice(0, 3);
+    var fullHoraAhora = hoyAhora.toString().slice(16, 21); // Checkear la blacklist antes de ejecutar la función
+
+    var now = new Date();
+    var dateString = now.toISOString().split("T")[0];
+
+    if (whitelist.includes(dateString)) {
+      console.log("La fecha ".concat(dateString, " est\xE1 en la whiteliste y se ejecutar\xE1 la tarea."));
+      console.log("Hoy es:", diaHoy, "la hora es:", fullHoraAhora);
+      console.log("CRON: Se consulta al JKMT 96hs");
+      injeccionFirebird96();
+    }
+  }); // Trae los datos del Firebird - Intenta cada 1 min en caso de error de conexion
+
+  function tryAgain48() {
+    console.log("Error de conexion con el Firebird, se intenta nuevamente luego de 10s...");
+    setTimeout(function () {
+      injeccionFirebird48();
+    }, 1000 * 60);
+  } // Consulta al JKMT 48hs
+
 
   function injeccionFirebird48() {
-    Firebird.attach(odontos, function (err, db) {
-      if (err) throw err; // db = DATABASE
+    console.log("Obteniendo los datos del Firebird...48hs");
+    Firebird.attach(_config.firebird, function (err, db) {
+      if (err) {
+        console.log(err);
+        return tryAgain48();
+      } // db = DATABASE
+
 
       db.query( // Trae los ultimos 50 registros de turnos del JKMT
       "SELECT * FROM VW_RESUMEN_TURNOS_48HS", function (err, result) {
@@ -163,14 +189,25 @@ module.exports = function (app) {
         iniciarEnvio();
       });
     });
-  } //injeccionFirebird48();
-  // Consulta al JKMT
+  } // Trae los datos del Firebird - Intenta cada 1 min en caso de error de conexion
+
+
+  function tryAgain72() {
+    console.log("Error de conexion con el Firebird, se intenta nuevamente luego de 10s...");
+    setTimeout(function () {
+      injeccionFirebird72();
+    }, 1000 * 60);
+  } // Consulta al JKMT 72hs
 
 
   function injeccionFirebird72() {
-    console.log("Se actualiza el PSQL 72hs");
-    Firebird.attach(odontos, function (err, db) {
-      if (err) throw err; // db = DATABASE
+    console.log("Obteniendo los datos del Firebird...72hs");
+    Firebird.attach(_config.firebird, function (err, db) {
+      if (err) {
+        console.log(err);
+        return tryAgain72();
+      } // db = DATABASE
+
 
       db.query( // Trae los ultimos 50 registros de turnos del JKMT
       "SELECT * FROM VW_RESUMEN_TURNOS_72HS", function (err, result) {
@@ -185,15 +222,7 @@ module.exports = function (app) {
 
           if (!e.PLAN_CLIENTE) {
             e.PLAN_CLIENTE = " ";
-          } // Si la hora viene por ej: 11:0 entonces agregar el 0 al final
-          // if (e.HORA[3] === "0") {
-          //   e.HORA = e.HORA + "0";
-          // }
-          // Si la hora viene por ej: 10:3 o 11:2 entonces agregar el 0 al final
-          // if (e.HORA.length === 4 && e.HORA[0] === "1") {
-          //   e.HORA = e.HORA + "0";
-          // }
-          // Si el nro de tel trae NULL cambiar por 595000 y cambiar el estado a 2
+          } // Si el nro de tel trae NULL cambiar por 595000 y cambiar el estado a 2
           // Si no reemplazar el 0 por el 595
 
 
@@ -218,12 +247,61 @@ module.exports = function (app) {
         }); // IMPORTANTE: cerrar la conexion
 
         db.detach();
-        console.log("Llama a la funcion iniciar envio que se retrasa 1 min en ejecutarse 48hs");
+        console.log("Llama a la funcion iniciar envio que se retrasa 1 min en ejecutarse Sucursales48hs");
         iniciarEnvio();
       });
     });
-  } //injeccionFirebird72();
-  // Inicia los envios - Consulta al PGSQL
+  } // Consulta al JKMT 96hs
+
+
+  function injeccionFirebird96() {
+    console.log("Se actualiza el PSQL 96hs");
+    Firebird.attach(_config.firebird, function (err, db) {
+      if (err) throw err; // db = DATABASE
+
+      db.query( // Trae los ultimos 50 registros de turnos del JKMT
+      "SELECT * FROM VW_RESUMEN_TURNOS_96HS", function (err, result) {
+        console.log("Cant de turnos 96hs obtenidos del JKMT:", result.length); // Recorre el array que contiene los datos e inserta en la base de postgresql
+
+        result.forEach(function (e) {
+          // Si el nro de cert trae NULL cambiar por 000000
+          if (!e.CARNET) {
+            e.CARNET = " ";
+          } // Si no tiene plan
+
+
+          if (!e.PLAN_CLIENTE) {
+            e.PLAN_CLIENTE = " ";
+          } // Si el nro de tel trae NULL cambiar por 595000 y cambiar el estado a 2
+          // Si no reemplazar el 0 por el 595
+
+
+          if (!e.TELEFONO_MOVIL) {
+            e.TELEFONO_MOVIL = "595000";
+            e.estado_envio = 2;
+          } else {
+            e.TELEFONO_MOVIL = e.TELEFONO_MOVIL.replace(0, "595");
+          } // Reemplazar por mi nro para probar el envio
+          // if (!e.TELEFONO_MOVIL) {
+          //   e.TELEFONO_MOVIL = "595000";
+          //   e.estado_envio = 2;
+          // } else {
+          //   e.TELEFONO_MOVIL = "595986153301";
+          // }
+
+
+          Turnos_sucursales48hs.create(e) //.then((result) => res.json(result))
+          ["catch"](function (error) {
+            return console.log(error.message);
+          });
+        }); // IMPORTANTE: cerrar la conexion
+
+        db.detach();
+        console.log("Llama a la funcion iniciar envio que se retrasa 1 min en ejecutarse Sucursales48hs");
+        iniciarEnvio();
+      });
+    });
+  } // Inicia los envios - Consulta al PGSQL
 
 
   var losTurnos = [];
@@ -248,7 +326,15 @@ module.exports = function (app) {
     }, tiempoRetrasoPGSQL);
   }
 
-  iniciarEnvio(); // Envia los mensajes
+  iniciarEnvio(); // Reintentar envio si la API WWA falla
+
+  function retry() {
+    console.log("Se va a intentar enviar nuevamente luego de 2m ...");
+    setTimeout(function () {
+      iniciarEnvio();
+    }, 1000 * 60);
+  } // Envia los mensajes
+
 
   var retraso = function retraso() {
     return new Promise(function (r) {
@@ -262,140 +348,160 @@ module.exports = function (app) {
 
   function _enviarMensaje() {
     _enviarMensaje = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
-      var _loop, i;
+      var i, turnoId, dataBody, response, data, body, _body, errMsg;
 
-      return _regeneratorRuntime().wrap(function _callee$(_context2) {
+      return _regeneratorRuntime().wrap(function _callee$(_context) {
         while (1) {
-          switch (_context2.prev = _context2.next) {
+          switch (_context.prev = _context.next) {
             case 0:
-              console.log("Inicia el recorrido del for para enviar los turnos Sucursales48hs");
-              _loop = /*#__PURE__*/_regeneratorRuntime().mark(function _loop(i) {
-                var turnoId, data;
-                return _regeneratorRuntime().wrap(function _loop$(_context) {
-                  while (1) {
-                    switch (_context.prev = _context.next) {
-                      case 0:
-                        turnoId = losTurnos[i].id_turno; //mensajePieCompleto = losTurnos[i].CLIENTE + mensajePie;
-
-                        mensajePieCompleto = "Buenas Sr/a.\n" + losTurnos[i].CLIENTE + "\n      \n*ODONTOS* le recuerda su turno en fecha " + losTurnos[i].FECHA + " a las " + losTurnos[i].HORA + " en la sucursal " + losTurnos[i].SUCURSAL + " con el/la profesional " + losTurnos[i].NOMBRE_COMERCIAL + "\n#Carnet: " + losTurnos[i].CARNET + mensajePie;
-                        data = {
-                          message: mensajePieCompleto,
-                          phone: losTurnos[i].TELEFONO_MOVIL,
-                          mimeType: fileMimeTypeMedia,
-                          data: fileBase64Media,
-                          fileName: "",
-                          fileSize: ""
-                        }; // Funcion ajax para nodejs que realiza los envios a la API free WWA
-
-                        axios.post(wwaUrl, data, {
-                          timeout: 60000
-                        }).then(function (response) {
-                          var data = response.data;
-
-                          if (data.responseExSave.id) {
-                            console.log("Enviado - OK"); // Se actualiza el estado a 1
-
-                            var body = {
-                              estado_envio: 1
-                            };
-                            Turnos_sucursales48hs.update(body, {
-                              where: {
-                                id_turno: turnoId
-                              }
-                            }) //.then((result) => res.json(result))
-                            ["catch"](function (error) {
-                              res.status(412).json({
-                                msg: error.message
-                              });
-                            });
-                          }
-
-                          if (data.responseExSave.unknow) {
-                            console.log("No Enviado - unknow"); // Se actualiza el estado a 3
-
-                            var _body = {
-                              estado_envio: 3
-                            };
-                            Turnos_sucursales48hs.update(_body, {
-                              where: {
-                                id_turno: turnoId
-                              }
-                            }) //.then((result) => res.json(result))
-                            ["catch"](function (error) {
-                              res.status(412).json({
-                                msg: error.message
-                              });
-                            });
-                          }
-
-                          if (data.responseExSave.error) {
-                            console.log("No enviado - error");
-                            var errMsg = data.responseExSave.error.slice(0, 17);
-
-                            if (errMsg === "Escanee el código") {
-                              updateEstatusERROR(turnoId, 104); //console.log("Error 104: ", data.responseExSave.error);
-                            } // Sesion cerrada o desvinculada. Puede que se envie al abrir la sesion o al vincular
-
-
-                            if (errMsg === "Protocol error (R") {
-                              updateEstatusERROR(turnoId, 105); //console.log("Error 105: ", data.responseExSave.error);
-                              // Se ejecuta la función que notifica si cayó la sesión principal de la API
-
-                              notificarSesionOff("Error01 de sesión de la API: ", data.responseExSave.error); // Vacia el array de los turnos para no notificar por cada turno cada segundo
-
-                              losTurnos = [];
-                            } // El numero esta mal escrito o supera los 12 caracteres
-
-
-                            if (errMsg === "Evaluation failed") {
-                              updateEstatusERROR(turnoId, 106); //console.log("Error 106: ", data.responseExSave.error);
-                            }
-                          }
-                        })["catch"](function (error) {
-                          if (error.code === "ECONNABORTED") {
-                            console.error("La solicitud tardó demasiado y se canceló", error.code);
-                            notificarSesionOff("Error02 de conexión con la API: " + error.code);
-                            losTurnos = [];
-                          } else {
-                            console.error("Error de conexión con la API: ", error.code);
-                            notificarSesionOff("Error02 de conexión con la API: " + error.code);
-                            losTurnos = [];
-                          }
-                        });
-                        _context.next = 6;
-                        return retraso();
-
-                      case 6:
-                      case "end":
-                        return _context.stop();
-                    }
-                  }
-                }, _loop);
-              });
+              console.log("Inicia el recorrido del for para enviar los turnos Sucursales");
+              _context.prev = 1;
               i = 0;
 
             case 3:
               if (!(i < losTurnos.length)) {
-                _context2.next = 8;
+                _context.next = 39;
                 break;
               }
 
-              return _context2.delegateYield(_loop(i), "t0", 5);
+              _context.prev = 4;
+              turnoId = losTurnos[i].id_turno;
+              mensajePieCompleto = "Buenas Sr/a.\n  " + losTurnos[i].CLIENTE + "\n\n  *ODONTOS* le recuerda su turno en fecha " + losTurnos[i].FECHA + " a las " + losTurnos[i].HORA + " en la sucursal " + losTurnos[i].SUCURSAL + " con el/la profesional " + losTurnos[i].NOMBRE_COMERCIAL + "\n  #Carnet: " + losTurnos[i].CARNET + mensajePie;
+              dataBody = {
+                message: mensajePieCompleto,
+                phone: losTurnos[i].TELEFONO_MOVIL,
+                mimeType: fileMimeTypeMedia,
+                data: fileBase64Media,
+                fileName: "",
+                fileSize: ""
+              };
+              _context.next = 10;
+              return axios.post(wwaUrl, dataBody, {
+                timeout: 1000 * 60
+              });
 
-            case 5:
-              i++;
-              _context2.next = 3;
+            case 10:
+              response = _context.sent;
+              // Procesar la respuesta aquí...
+              data = response.data;
+
+              if (data.responseExSave.id) {
+                console.log("Enviado - OK"); // Se actualiza el estado a 1
+
+                body = {
+                  estado_envio: 1
+                };
+                Turnos_sucursales48hs.update(body, {
+                  where: {
+                    id_turno: turnoId
+                  }
+                }) //.then((result) => res.json(result))
+                ["catch"](function (error) {
+                  res.status(412).json({
+                    msg: error.message
+                  });
+                });
+              }
+
+              if (data.responseExSave.unknow) {
+                console.log("No Enviado - unknow"); // Se actualiza el estado a 3
+
+                _body = {
+                  estado_envio: 3
+                };
+                Turnos_sucursales48hs.update(_body, {
+                  where: {
+                    id_turno: turnoId
+                  }
+                }) //.then((result) => res.json(result))
+                ["catch"](function (error) {
+                  res.status(412).json({
+                    msg: error.message
+                  });
+                });
+              }
+
+              if (!data.responseExSave.error) {
+                _context.next = 26;
+                break;
+              }
+
+              console.log("No enviado - error");
+              errMsg = data.responseExSave.error.slice(0, 17);
+
+              if (!(errMsg === "Escanee el código")) {
+                _context.next = 21;
+                break;
+              }
+
+              console.log("Error 104: ", errMsg); // Vacia el array de los turnos para no notificar por cada turno cada segundo
+
+              losTurnos = [];
+              throw new Error("Error en sesi\xF3n en respuesta de la solicitud Axios - ".concat(errMsg));
+
+            case 21:
+              if (!(errMsg === "Protocol error (R")) {
+                _context.next = 25;
+                break;
+              }
+
+              console.log("Error 105: ", errMsg); // Vacia el array de los turnos para no notificar por cada turno cada segundo
+
+              losTurnos = [];
+              throw new Error("Error en sesi\xF3n en respuesta de la solicitud Axios - ".concat(errMsg));
+
+            case 25:
+              // El numero esta mal escrito o supera los 12 caracteres
+              if (errMsg === "Evaluation failed") {
+                updateEstatusERROR(turnoId, 106); //console.log("Error 106: ", data.responseExSave.error);
+              }
+
+            case 26:
+              _context.next = 34;
               break;
 
-            case 8:
-              console.log("Fin del envío");
+            case 28:
+              _context.prev = 28;
+              _context.t0 = _context["catch"](4);
+              console.log(_context.t0); // Manejo de errores aquí...
 
-            case 9:
+              if (_context.t0.code === "ECONNABORTED") {
+                console.error("La solicitud tardó demasiado y se canceló", _context.t0.code);
+                notificarSesionOff("Error02 de conexión con la API: " + _context.t0.code);
+              } else {
+                console.error("Error de conexión con la API: ", _context.t0);
+                notificarSesionOff("Error02 de conexión con la API: " + _context.t0);
+              } // Lanzar una excepción para detener el bucle
+
+
+              losTurnos = [];
+              throw new Error("\"Error de conexi\xF3n en la solicitud Axios - ".concat(_context.t0.code));
+
+            case 34:
+              _context.next = 36;
+              return retraso();
+
+            case 36:
+              i++;
+              _context.next = 3;
+              break;
+
+            case 39:
+              console.log("Fin del envío");
+              _context.next = 45;
+              break;
+
+            case 42:
+              _context.prev = 42;
+              _context.t1 = _context["catch"](1);
+              console.error("Error en el bucle principal:", _context.t1.message); // Manejar el error del bucle aquí
+
+            case 45:
             case "end":
-              return _context2.stop();
+              return _context.stop();
           }
         }
-      }, _callee);
+      }, _callee, null, [[1, 42], [4, 28]]);
     }));
     return _enviarMensaje.apply(this, arguments);
   }
@@ -448,25 +554,25 @@ module.exports = function (app) {
     _notificarSesionOff = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee2(error) {
       var _iterator, _step, item;
 
-      return _regeneratorRuntime().wrap(function _callee2$(_context3) {
+      return _regeneratorRuntime().wrap(function _callee2$(_context2) {
         while (1) {
-          switch (_context3.prev = _context3.next) {
+          switch (_context2.prev = _context2.next) {
             case 0:
               _iterator = _createForOfIteratorHelper(numerosNotificados);
-              _context3.prev = 1;
+              _context2.prev = 1;
 
               _iterator.s();
 
             case 3:
               if ((_step = _iterator.n()).done) {
-                _context3.next = 12;
+                _context2.next = 12;
                 break;
               }
 
               item = _step.value;
               console.log(item);
               mensajeBody = {
-                message: "Error en la API - EnviadorSucursales 48hs\n".concat(error),
+                message: "*Error en la API - EnviadorSucursales48hs*\n".concat(error),
                 phone: item.NUMERO,
                 mimeType: "",
                 data: "",
@@ -492,33 +598,37 @@ module.exports = function (app) {
                 console.log("**Verificar la sesion local: " + wwaUrl_Notificacion);
               }); // Espera 5s
 
-              _context3.next = 10;
+              _context2.next = 10;
               return retrasoNotificador();
 
             case 10:
-              _context3.next = 3;
+              _context2.next = 3;
               break;
 
             case 12:
-              _context3.next = 17;
+              _context2.next = 17;
               break;
 
             case 14:
-              _context3.prev = 14;
-              _context3.t0 = _context3["catch"](1);
+              _context2.prev = 14;
+              _context2.t0 = _context2["catch"](1);
 
-              _iterator.e(_context3.t0);
+              _iterator.e(_context2.t0);
 
             case 17:
-              _context3.prev = 17;
+              _context2.prev = 17;
 
               _iterator.f();
 
-              return _context3.finish(17);
+              return _context2.finish(17);
 
             case 20:
+              // Reintentar el envio luego de 1m
+              retry();
+
+            case 21:
             case "end":
-              return _context3.stop();
+              return _context2.stop();
           }
         }
       }, _callee2, null, [[1, 14, 17, 20]]);

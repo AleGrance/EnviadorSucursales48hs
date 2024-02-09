@@ -25,7 +25,7 @@ module.exports = function (app) {
     user_id: 1
   }; // Ejecutar la funcion a las 10:00 de Lunes(1) a Sabados (6)
 
-  cron.schedule("00 12 * * 1-6", function () {
+  cron.schedule("00 13 * * 1-6", function () {
     var hoyAhora = new Date();
     var diaHoy = hoyAhora.toString().slice(0, 3);
     var fullHoraAhora = hoyAhora.toString().slice(16, 21);

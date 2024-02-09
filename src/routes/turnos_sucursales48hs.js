@@ -8,14 +8,17 @@ var Firebird = require("node-firebird");
 // Datos de la conexion Firebird
 import { firebird } from "../libs/config";
 
-// Sesion del enviador de Primera consulta
+// Sesion del enviador
 const wwaUrl = "http://192.168.10.200:3003/lead";
+//const wwaUrl = "http://192.168.10.200:3001/lead";
+
 // URL del notificador
 const wwaUrl_Notificacion = "http://localhost:3088/lead";
 
 // Datos del Mensaje de whatsapp
 let fileMimeTypeMedia = "";
 let fileBase64Media = "";
+// Mensaje del notificador
 let mensajeBody = "";
 
 // Mensaje pie de imagen
@@ -28,7 +31,7 @@ En caso de NO confirmar su Turno con 24 hs de anticipación❗❗, QUEDARA DISPO
 let mensajePieCompleto = "";
 
 // Ruta de la imagen JPEG
-const imagePath = path.join(__dirname, "..", "assets", "img", "imgSucursales.jpeg");
+const imagePath = path.join(__dirname, "..", "img", "imgSucursales.jpeg");
 // Leer el contenido de la imagen como un buffer
 const imageBuffer = fs.readFileSync(imagePath);
 // Convertir el buffer a base64
@@ -232,20 +235,11 @@ module.exports = (app) => {
             if (!e.CARNET) {
               e.CARNET = " ";
             }
+
             // Si no tiene plan
             if (!e.PLAN_CLIENTE) {
               e.PLAN_CLIENTE = " ";
             }
-
-            // Si la hora viene por ej: 11:0 entonces agregar el 0 al final
-            // if (e.HORA[3] === "0") {
-            //   e.HORA = e.HORA + "0";
-            // }
-
-            // Si la hora viene por ej: 10:3 o 11:2 entonces agregar el 0 al final
-            // if (e.HORA.length === 4 && e.HORA[0] === "1") {
-            //   e.HORA = e.HORA + "0";
-            // }
 
             // Si el nro de tel trae NULL cambiar por 595000 y cambiar el estado a 2
             // Si no reemplazar el 0 por el 595
@@ -363,45 +357,52 @@ module.exports = (app) => {
 
   //iniciarEnvio();
 
+  // Reintentar envio si la API WWA falla
+  function retry() {
+    console.log("Se va a intentar enviar nuevamente luego de 2m ...");
+    setTimeout(() => {
+      iniciarEnvio();
+    }, 1000 * 60);
+  }
+
   // Envia los mensajes
   let retraso = () => new Promise((r) => setTimeout(r, tiempoRetrasoEnvios));
   async function enviarMensaje() {
-    console.log("Inicia el recorrido del for para enviar los turnos Sucursales48hs");
-    for (let i = 0; i < losTurnos.length; i++) {
-      const turnoId = losTurnos[i].id_turno;
-      //mensajePieCompleto = losTurnos[i].CLIENTE + mensajePie;
-      mensajePieCompleto =
-        `Buenas Sr/a.
-` +
-        losTurnos[i].CLIENTE +
-        `
-      
-*ODONTOS* le recuerda su turno en fecha ` +
-        losTurnos[i].FECHA +
-        ` a las ` +
-        losTurnos[i].HORA +
-        ` en la sucursal ` +
-        losTurnos[i].SUCURSAL +
-        ` con el/la profesional ` +
-        losTurnos[i].NOMBRE_COMERCIAL +
-        `
-#Carnet: ` +
-        losTurnos[i].CARNET +
-        mensajePie;
+    console.log("Inicia el recorrido del for para enviar los turnos Sucursales");
+    try {
+      for (let i = 0; i < losTurnos.length; i++) {
+        try {
+          const turnoId = losTurnos[i].id_turno;
+          mensajePieCompleto =
+            `Buenas Sr/a.
+  ` +
+            losTurnos[i].CLIENTE +
+            `
 
-      const data = {
-        message: mensajePieCompleto,
-        phone: losTurnos[i].TELEFONO_MOVIL,
-        mimeType: fileMimeTypeMedia,
-        data: fileBase64Media,
-        fileName: "",
-        fileSize: "",
-      };
+  *ODONTOS* le recuerda su turno en fecha ` +
+            losTurnos[i].FECHA +
+            ` a las ` +
+            losTurnos[i].HORA +
+            ` en la sucursal ` +
+            losTurnos[i].SUCURSAL +
+            ` con el/la profesional ` +
+            losTurnos[i].NOMBRE_COMERCIAL +
+            `
+  #Carnet: ` +
+            losTurnos[i].CARNET +
+            mensajePie;
 
-      // Funcion ajax para nodejs que realiza los envios a la API free WWA
-      axios
-        .post(wwaUrl, data, { timeout: 60000 })
-        .then((response) => {
+          const dataBody = {
+            message: mensajePieCompleto,
+            phone: losTurnos[i].TELEFONO_MOVIL,
+            mimeType: fileMimeTypeMedia,
+            data: fileBase64Media,
+            fileName: "",
+            fileSize: "",
+          };
+
+          const response = await axios.post(wwaUrl, dataBody, { timeout: 1000 * 60 });
+          // Procesar la respuesta aquí...
           const data = response.data;
 
           if (data.responseExSave.id) {
@@ -444,17 +445,17 @@ module.exports = (app) => {
             console.log("No enviado - error");
             const errMsg = data.responseExSave.error.slice(0, 17);
             if (errMsg === "Escanee el código") {
-              updateEstatusERROR(turnoId, 104);
-              //console.log("Error 104: ", data.responseExSave.error);
+              console.log("Error 104: ", errMsg);
+              // Vacia el array de los turnos para no notificar por cada turno cada segundo
+              losTurnos = [];
+              throw new Error(`Error en sesión en respuesta de la solicitud Axios - ${errMsg}`);
             }
             // Sesion cerrada o desvinculada. Puede que se envie al abrir la sesion o al vincular
             if (errMsg === "Protocol error (R") {
-              updateEstatusERROR(turnoId, 105);
-              //console.log("Error 105: ", data.responseExSave.error);
-              // Se ejecuta la función que notifica si cayó la sesión principal de la API
-              notificarSesionOff("Error01 de sesión de la API: ", data.responseExSave.error);
+              console.log("Error 105: ", errMsg);
               // Vacia el array de los turnos para no notificar por cada turno cada segundo
               losTurnos = [];
+              throw new Error(`Error en sesión en respuesta de la solicitud Axios - ${errMsg}`);
             }
             // El numero esta mal escrito o supera los 12 caracteres
             if (errMsg === "Evaluation failed") {
@@ -462,22 +463,29 @@ module.exports = (app) => {
               //console.log("Error 106: ", data.responseExSave.error);
             }
           }
-        })
-        .catch((error) => {
+        } catch (error) {
+          console.log(error);
+          // Manejo de errores aquí...
           if (error.code === "ECONNABORTED") {
             console.error("La solicitud tardó demasiado y se canceló", error.code);
             notificarSesionOff("Error02 de conexión con la API: " + error.code);
-            losTurnos = [];
           } else {
-            console.error("Error de conexión con la API: ", error.code);
-            notificarSesionOff("Error02 de conexión con la API: " + error.code);
-            losTurnos = [];
+            console.error("Error de conexión con la API: ", error);
+            notificarSesionOff("Error02 de conexión con la API: " + error);
           }
-        });
+          // Lanzar una excepción para detener el bucle
+          losTurnos = [];
+          throw new Error(`"Error de conexión en la solicitud Axios - ${error.code}`);
+        }
 
-      await retraso();
+        // Esperar 15 segundos antes de la próxima iteración
+        await retraso();
+      }
+      console.log("Fin del envío");
+    } catch (error) {
+      console.error("Error en el bucle principal:", error.message);
+      // Manejar el error del bucle aquí
     }
-    console.log("Fin del envío");
   }
 
   function updateEstatusERROR(turnoId, cod_error) {
@@ -513,7 +521,7 @@ module.exports = (app) => {
       console.log(item);
 
       mensajeBody = {
-        message: `Error en la API - EnviadorSucursales 48hs
+        message: `*Error en la API - EnviadorSucursales48hs*
 ${error}`,
         phone: item.NUMERO,
         mimeType: "",
@@ -545,6 +553,9 @@ ${error}`,
       // Espera 5s
       await retrasoNotificador();
     }
+
+    // Reintentar el envio luego de 1m
+    retry();
   }
 
   /*
