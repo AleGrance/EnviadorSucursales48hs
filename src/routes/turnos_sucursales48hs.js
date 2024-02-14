@@ -10,7 +10,7 @@ import { firebird } from "../libs/config";
 
 // Sesion del enviador
 const wwaUrl = "http://192.168.10.200:3003/lead";
-//const wwaUrl = "http://192.168.10.200:3001/lead";
+//const wwaUrl = "http://localhost:3001/lead";
 
 // URL del notificador
 const wwaUrl_Notificacion = "http://localhost:3088/lead";
@@ -56,18 +56,6 @@ var tiempoRetrasoEnvios = 10000;
 // Blacklist fechas
 const blacklist = [
   "2023-05-02",
-  "2023-05-16",
-  "2023-08-15",
-  "2023-09-29",
-  "2023-12-08",
-  "2023-12-11",
-
-  "2023-12-23",
-  "2023-12-29",
-  "2023-12-30",
-
-  "2023-12-25", // Navidad
-  "2024-01-01", // Año nuevo
 ];
 
 // Whitelist para ejecutar el de 96hs
@@ -204,6 +192,8 @@ module.exports = (app) => {
     });
   }
 
+  //injeccionFirebird48();
+
   // Trae los datos del Firebird - Intenta cada 1 min en caso de error de conexion
   function tryAgain72() {
     console.log("Error de conexion con el Firebird, se intenta nuevamente luego de 10s...");
@@ -211,7 +201,7 @@ module.exports = (app) => {
       injeccionFirebird72();
     }, 1000 * 60);
   }
-
+  
   // Consulta al JKMT 72hs
   function injeccionFirebird72() {
     console.log("Obteniendo los datos del Firebird...72hs");
@@ -273,6 +263,8 @@ module.exports = (app) => {
       );
     });
   }
+
+  injeccionFirebird72();
 
   // Consulta al JKMT 96hs
   function injeccionFirebird96() {
@@ -464,14 +456,14 @@ module.exports = (app) => {
             }
           }
         } catch (error) {
-          console.log(error);
+          console.log({error: error.code});
           // Manejo de errores aquí...
           if (error.code === "ECONNABORTED") {
             console.error("La solicitud tardó demasiado y se canceló", error.code);
             notificarSesionOff("Error02 de conexión con la API: " + error.code);
           } else {
-            console.error("Error de conexión con la API: ", error);
-            notificarSesionOff("Error02 de conexión con la API: " + error);
+            console.error("Error de conexión con la API: ", error.code);
+            notificarSesionOff("Error02 de conexión con la API: " + error.code);
           }
           // Lanzar una excepción para detener el bucle
           losTurnos = [];
@@ -663,75 +655,6 @@ ${error}`,
         });
       });
   });
-
-  // // Turnos no enviados - estado_envio 2 o 3
-  // app.route("/turnosNoNotificados").get((req, res) => {
-  //   // Fecha de hoy 2022-02-30
-  //   let fechaHoy = new Date().toISOString().slice(0, 10);
-  //   Turnos.count({
-  //     where: {
-  //       [Op.and]: [
-  //         { estado_envio: { [Op.in]: [2, 3] } },
-  //         {
-  //           updatedAt: {
-  //             [Op.between]: [fechaHoy + " 00:00:00", fechaHoy + " 23:59:59"],
-  //           },
-  //         },
-  //       ],
-  //     },
-  //     //order: [["FECHA_CREACION", "DESC"]],
-  //   })
-  //     .then((result) => res.json(result))
-  //     .catch((error) => {
-  //       res.status(402).json({
-  //         msg: error.menssage,
-  //       });
-  //     });
-  // });
-
-  // // Trae la cantidad de turnos enviados por rango de fecha desde hasta
-  // app.route("/turnosNoNotificadosFecha").post((req, res) => {
-  //   let fechaHoy = new Date().toISOString().slice(0, 10);
-  //   let { fecha_desde, fecha_hasta } = req.body;
-
-  //   if (fecha_desde === "" && fecha_hasta === "") {
-  //     fecha_desde = fechaHoy;
-  //     fecha_hasta = fechaHoy;
-  //   }
-
-  //   if (fecha_hasta == "") {
-  //     fecha_hasta = fecha_desde;
-  //   }
-
-  //   if (fecha_desde == "") {
-  //     fecha_desde = fecha_hasta;
-  //   }
-
-  //   console.log(req.body);
-
-  //   Turnos.count({
-  //     where: {
-  //       [Op.and]: [
-  //         { estado_envio: { [Op.in]: [2, 3] } },
-  //         {
-  //           updatedAt: {
-  //             [Op.between]: [
-  //               fecha_desde + " 00:00:00",
-  //               fecha_hasta + " 23:59:59",
-  //             ],
-  //           },
-  //         },
-  //       ],
-  //     },
-  //     //order: [["createdAt", "DESC"]],
-  //   })
-  //     .then((result) => res.json(result))
-  //     .catch((error) => {
-  //       res.status(402).json({
-  //         msg: error.menssage,
-  //       });
-  //     });
-  // });
 
   app
     .route("/turnosSucursales48hs/:id_turno")
