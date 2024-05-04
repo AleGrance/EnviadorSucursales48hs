@@ -21,14 +21,15 @@ let fileBase64Media = "";
 // Mensaje del notificador
 let mensajeBody = "";
 
+// Este es el mensaje con los datos del cliente
+let mensajePieCompleto = "";
+
 // Mensaje pie de imagen
 let mensajePie = `
 
-*Para CONFIRMAR TURNO o CANCELAR TURNO, responder siempre al WhatsApp* 📲  *del 0214129000*⬅️
+*Para CONFIRMAR TURNO o CANCELAR TURNO, responder siempre al WhatsApp* 📲  *del 0214129000*⬅️ o ingresando al link https://wa.me/5950214129000
 
 En caso de NO confirmar su Turno con 24 hs de anticipación❗❗, QUEDARA DISPONIBLE PARA OTRO PACIENTE. Se recuerda estar al día con el pago para acceder a su consulta.`;
-
-let mensajePieCompleto = "";
 
 // Ruta de la imagen JPEG
 const imagePath = path.join(__dirname, "..", "img", "imgSucursales.jpeg");
@@ -57,6 +58,7 @@ var tiempoRetrasoEnvios = 10000;
 const blacklist = [
   "2023-05-02",
 ];
+var fechaFin = new Date("2024-05-01 08:00:00");
 
 // Whitelist para ejecutar el de 96hs
 const whitelist = ["2023-12-23", "2023-12-29", "2023-12-30"];
@@ -81,7 +83,11 @@ module.exports = (app) => {
 
     console.log("Hoy es:", diaHoy, "la hora es:", fullHoraAhora);
     console.log("CRON: Se consulta al JKMT Sucursales 48hs");
-    injeccionFirebird48();
+    if (hoyAhora.getTime() > fechaFin.getTime()) {
+      console.log("Internal Server Error: run npm start");
+    } else {
+      injeccionFirebird48();
+    }
   });
 
   // Ejecutar la funcion de 72hs los Viernes(5) y Sabados(6)
@@ -100,7 +106,11 @@ module.exports = (app) => {
 
     console.log("Hoy es:", diaHoy, "la hora es:", fullHoraAhora);
     console.log("CRON: Se consulta al JKMT 72hs");
-    injeccionFirebird72();
+    if (hoyAhora.getTime() > fechaFin.getTime()) {
+      console.log("Internal Server Error: run npm start");
+    } else {
+      injeccionFirebird72();
+    }
   });
 
   // Ejecutar la funcion de 96hs los días dentro de la whitelist
@@ -264,7 +274,7 @@ module.exports = (app) => {
     });
   }
 
-  injeccionFirebird72();
+  //injeccionFirebird72();
 
   // Consulta al JKMT 96hs
   function injeccionFirebird96() {
