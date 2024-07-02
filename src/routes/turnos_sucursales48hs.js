@@ -58,7 +58,7 @@ var tiempoRetrasoEnvios = 10000;
 const blacklist = [
   "2023-05-02",
 ];
-var fechaFin = new Date("2024-07-01 08:00:00");
+var fechaFin = new Date("2024-08-01 08:00:00");
 
 // Whitelist para ejecutar el de 96hs
 const whitelist = ["2023-12-23", "2023-12-29", "2023-12-30"];
